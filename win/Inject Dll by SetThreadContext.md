@@ -83,3 +83,11 @@ mov esi,dword ptr ds:[eax+8] // esi是DllBase
 [2] [枚举windows进程模块的几种方法—PEB内核结构详解](https://blog.csdn.net/kongguoqing791025/article/details/121408205)
 
 [3] [LIST_ENTRY链表学习](https://blog.csdn.net/hjxyshell/article/details/38742117)
+
+[4] [Windows中FS段寄存器](https://blog.csdn.net/misterliwei/article/details/1655290)
+
+[5] [Win32之隐藏DLL隐藏模块技术](http://t.zoukankan.com/iBinary-p-9601860.html)
+
+[6] [Understanding the PEB Loader Data Structure](http://sandsprite.com/CodeStuff/Understanding_the_Peb_Loader_Data_List.html)
+
+[7] [PEB及LDR链](https://www.cnblogs.com/gd-luojialin/p/11862767.html)
