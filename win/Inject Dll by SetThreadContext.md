@@ -127,6 +127,10 @@ mov ecx,dword ptr ds:[eax+20] // ecx是BaseDllName(wchar_t)
 mov esi,dword ptr ds:[eax+8] // esi是DllBase
 ```
 
+## 实现代码
+
+*详情见同目录下的CInjection.h/cpp文件*
+
 ## Reference
 
 [1] [windbg学习23（!peb和PEB结构）](http://t.zoukankan.com/hgy413-p-3693439.html)
