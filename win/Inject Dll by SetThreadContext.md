@@ -129,7 +129,7 @@ mov esi,dword ptr ds:[eax+8] // esi是DllBase
 
 ## 实现代码
 
-*详情见同目录下的CInjection.h/cpp文件*
+*详情见同目录下的Injection.h/cpp文件*
 
 ## Reference
 
