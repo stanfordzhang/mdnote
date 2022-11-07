@@ -3,17 +3,43 @@
 ## Debugging in WinDBG
 
 ```bash
-dt _PEB @$peb
+0:004> dt _PEB @$peb
+ntdll!_PEB
+   +0x000 InheritedAddressSpace : 0 ''
+   +0x001 ReadImageFileExecOptions : 0 ''
+   +0x002 BeingDebugged    : 0x1 ''
+   +0x003 BitField         : 0x4 ''
+   +0x003 ImageUsesLargePages : 0y0
+   +0x003 IsProtectedProcess : 0y0
+   +0x003 IsImageDynamicallyRelocated : 0y1
+   +0x003 SkipPatchingUser32Forwarders : 0y0
+   +0x003 IsPackagedProcess : 0y0
+   +0x003 IsAppContainer   : 0y0
+   +0x003 IsProtectedProcessLight : 0y0
+   +0x003 IsLongPathAwareProcess : 0y0
+   +0x004 Mutant           : 0xffffffff Void
+   +0x008 ImageBaseAddress : 0x00fd0000 Void
+   +0x00c Ldr              : 0x77a35d80 _PEB_LDR_DATA // HERE!!!
+   +0x010 ProcessParameters : 0x02191e88 _RTL_USER_PROCESS_PARAMETERS
 ```
-![](https://github.com/stanfordzhang/mdnote/blob/main/win/1.png)
 
 PEB结构偏移为0xC的位置是_PEB_LDR_DATA结构的指针
 
 ```bash
-dt _PEB_LDR_DATA poi(@$peb+0xc)
+0:004> dt _PEB_LDR_DATA poi(@$peb+0xc)
+ntdll!_PEB_LDR_DATA
+   +0x000 Length           : 0x30
+   +0x004 Initialized      : 0x1 ''
+   +0x008 SsHandle         : (null) 
+   +0x00c InLoadOrderModuleList : _LIST_ENTRY [ 0x21939e8 - 0x21d6800 ]
+   +0x014 InMemoryOrderModuleList : _LIST_ENTRY [ 0x21939f0 - 0x21d6808 ]
+   +0x01c InInitializationOrderModuleList : _LIST_ENTRY [ 0x21938f0 - 0x21d6810 ]
+   +0x024 EntryInProgress  : (null) 
+   +0x028 ShutdownInProgress : 0 ''
+   +0x02c ShutdownThreadId : (null) 
+
 ```
-![](https://github.com/stanfordzhang/mdnote/blob/main/win/2.png)
-上图中可以看到三个LIST_ENTRY
+在偏移0x00c, 0x014, 0x01c处分别可以看到三个LIST_ENTRY
 
 > LIST_ENTRY InLoadOrderModuleList; //按加载顺序
 > LIST_ENTRY InMemoryOrderModuleList; //按内存顺序
@@ -26,9 +52,13 @@ dt _PEB_LDR_DATA poi(@$peb+0xc)
 InInitializationOrderModuleList里的内容为
 
 ```bash
-dt _LIST_ENTRY poi(@$peb+0xc)+0x1c
+0:004> dt _LIST_ENTRY poi(@$peb+0xc)+0x1c
+ntdll!_LIST_ENTRY
+ [ 0x21938f0 - 0x21d6810 ]
+   +0x000 Flink            : 0x021938f0 _LIST_ENTRY [ 0x2194458 - 0x77a35d9c ]
+   +0x004 Blink            : 0x021d6810 _LIST_ENTRY [ 0x77a35d9c - 0x21cd7b0 ]
+
 ```
-![](https://github.com/stanfordzhang/mdnote/blob/main/win/3.png)
 
 InInitializationOrderModuleList是LIST_ENTRY的Head
 
@@ -36,31 +66,52 @@ LIST_ENTRY的使用方式参考[3]。
 
 特别要注意CONTAINING_RECORD宏的使用，LIST_ENTRY的偏移计算结构体的起始地址。
 
-由上图可知第一个元素就是InInitializationOrderModuleList->Flink
+由上面可知第一个元素就是InInitializationOrderModuleList->Flink
 
 这里InInitializationOrderModuleList->Flink = poi(@$peb+0xc)+0x1c+0x0
 
 Flink/Blink是个地址
 
 ```bash
-dt _LDR_DATA_TABLE_ENTRY
+0:004> dt _LDR_DATA_TABLE_ENTRY
+ntdll!_LDR_DATA_TABLE_ENTRY
+   +0x000 InLoadOrderLinks : _LIST_ENTRY
+   +0x008 InMemoryOrderLinks : _LIST_ENTRY
+   +0x010 InInitializationOrderLinks : _LIST_ENTRY
+   +0x018 DllBase          : Ptr32 Void
+   +0x01c EntryPoint       : Ptr32 Void
+   +0x020 SizeOfImage      : Uint4B
+
 ```
-![](https://github.com/stanfordzhang/mdnote/blob/main/win/4.png)
-由上图可知这里InInitializationOrderModuleList在LIST_ENTRY中的偏移为0x10的地方
+从上面输出可知InInitializationOrderModuleList在LIST_ENTRY中的偏移为0x10的地方
 
 ```bash
-dt _LDR_DATA_TABLE_ENTRY poi(poi(@$peb+0xc)+0x1c+0x0)-0x10
+0:004> dt _LDR_DATA_TABLE_ENTRY poi(poi(@$peb+0xc)+0x1c+0x0)-0x10
+ntdll!_LDR_DATA_TABLE_ENTRY
+   +0x000 InLoadOrderLinks : _LIST_ENTRY [ 0x2194078 - 0x21939e8 ]
+   +0x008 InMemoryOrderLinks : _LIST_ENTRY [ 0x2194080 - 0x21939f0 ]
+   +0x010 InInitializationOrderLinks : _LIST_ENTRY [ 0x2194458 - 0x77a35d9c ]
+   +0x018 DllBase          : 0x77910000 Void
+   +0x01c EntryPoint       : (null) 
+   +0x020 SizeOfImage      : 0x1a4000
+   +0x024 FullDllName      : _UNICODE_STRING "C:\Windows\SYSTEM32\ntdll.dll"
+   +0x02c BaseDllName      : _UNICODE_STRING "ntdll.dll"
 ```
-![](https://github.com/stanfordzhang/mdnote/blob/main/win/5.png)
 
-由上图可以看到
+如上面所示
 
 DllBase = poi(poi(@$peb+0xc)+0x1c+0x0)-0x10+0x18
 
 合并之后：poi(poi(@$peb+0xc)+0x1c)+0x8
 
 BaseDllName类型
-![](https://github.com/stanfordzhang/mdnote/blob/main/win/6.png)
+```bash
+0:004> dt _UNICODE_STRING
+ntdll!_UNICODE_STRING
+   +0x000 Length           : Uint2B
+   +0x002 MaximumLength    : Uint2B
+   +0x004 Buffer           : Ptr32 Wchar
+```
 Buffer是存放字符串的地方
 
 所以BaseDllName = poi(poi(@$peb+0xc)+0x1c+0x0)-0x10+0x2c+0x4
